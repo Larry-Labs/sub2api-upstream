@@ -493,8 +493,41 @@ export const commonErrorCodes = [
 // 辅助函数
 // =====================
 
-// 按平台获取模型
-export function getModelsByPlatform(platform: string): string[] {
+export interface ModelAccountContext {
+  type?: string
+  parentAccountId?: number | null
+  passthrough?: boolean
+  mappingMode?: ModelRestrictionMode
+}
+
+// This filters public whitelist names, so resolve only one mapping step, as
+// forwarding does. The shared API-key catalog and image choices stay intact.
+export function filterRetiredSubscriptionModels(
+  models: string[], platform: string, account: ModelAccountContext = {},
+  mappings: { from: string; to: string }[] = []
+): string[] {
+  if (platform !== 'openai' || (!['oauth', 'setup-token'].includes(account.type ?? '') && account.parentAccountId == null)) {
+    return models
+  }
+  const mapping = buildModelMappingObject(account.mappingMode ?? 'combined', models, mappings) ?? {}
+  return models.filter(model => {
+    let target = model.trim()
+    if (!account.passthrough) {
+      // Exact whitelist entries take precedence over wildcard rules.
+      const exact = mapping[target]
+      if (exact !== undefined) target = exact
+    }
+    const canonical = target.trim().split('/').pop()?.trim().toLowerCase()
+      .replace(/_/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^gpt5/, 'gpt-5') ?? ''
+    return canonical !== 'gpt-5.5' && !canonical.startsWith('gpt-5.5-')
+  })
+}
+
+export function getModelsByPlatform(platform: string, account?: ModelAccountContext): string[] {
+  return filterRetiredSubscriptionModels(getPlatformModels(platform), platform, account)
+}
+
+function getPlatformModels(platform: string): string[] {
   switch (platform) {
     case 'openai': return openaiModels
     case 'anthropic':

@@ -1663,6 +1663,9 @@
                 v-model="allowedModels"
                 :model-mappings="modelMappings"
                 :platform="form.platform"
+                :account-type="form.type"
+                :mapping-mode="modelRestrictionMode"
+                :passthrough="openaiPassthroughEnabled"
                 :sync-credentials="syncPreviewCredentials"
                 @upstream-synced="upstreamModelsPreviewed = true"
               />
@@ -2535,6 +2538,9 @@
               v-model="allowedModels"
               :model-mappings="modelMappings"
               :platform="form.platform"
+              :account-type="form.type"
+              :mapping-mode="modelRestrictionMode"
+              :passthrough="openaiPassthroughEnabled"
               :sync-credentials="syncPreviewCredentials"
               @upstream-synced="upstreamModelsPreviewed = true"
             />
@@ -5086,7 +5092,7 @@ watch(
         .then(profiles => { tlsFingerprintProfiles.value = profiles.map(p => ({ id: p.id, name: p.name })) })
         .catch(() => { tlsFingerprintProfiles.value = [] })
       // Modal opened - fill related models
-      allowedModels.value = [...getModelsByPlatform(form.platform)]
+      allowedModels.value = [...getModelsByPlatform(form.platform, { type: form.type })]
       // Antigravity: 默认使用映射模式并填充默认映射
       if (form.platform === 'antigravity') {
         antigravityModelRestrictionMode.value = 'mapping'
@@ -5280,10 +5286,10 @@ const handleSelectGeminiOAuthType = (oauthType: 'code_assist' | 'google_one' | '
 
 // Auto-fill related models when switching to whitelist mode or changing platform
 watch(
-  [modelRestrictionMode, () => form.platform],
+  [modelRestrictionMode, () => form.platform, () => form.type],
   ([newMode]) => {
     if (newMode === 'whitelist') {
-      allowedModels.value = [...getModelsByPlatform(form.platform)]
+      allowedModels.value = [...getModelsByPlatform(form.platform, { type: form.type })]
     }
   }
 )

@@ -47,6 +47,18 @@ func filterRetiredOpenAIModelIDs(accounts []Account, models []string) []string {
 	return filtered
 }
 
+// Discovery returns upstream IDs, not public aliases. Do not apply account
+// mappings here: a replacement alias must not make a retired source ID live.
+func filterRetiredOpenAIUpstreamModelIDs(account *Account, models []string) []string {
+	filtered := make([]string, 0, len(models))
+	for _, model := range models {
+		if !isRetiredOpenAISubscriptionModel(account, model) {
+			filtered = append(filtered, model)
+		}
+	}
+	return filtered
+}
+
 // Entries must already use client-visible names, not raw upstream IDs. Resolve
 // each public name exactly as routing does, after projection and before the
 // final client ETag is calculated. Preserve unknown fields.
