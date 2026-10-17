@@ -1,4 +1,4 @@
-import { getProviderProfile } from '@/constants/platformCatalog'
+import { getProviderProfile, getPlatformSpec } from '@/constants/platformCatalog'
 
 // =====================
 // 模型列表（硬编码，与 new-api 一致）
@@ -506,7 +506,8 @@ export function filterRetiredSubscriptionModels(
   models: string[], platform: string, account: ModelAccountContext = {},
   mappings: { from: string; to: string }[] = []
 ): string[] {
-  if (platform !== 'openai' || (!['oauth', 'setup-token'].includes(account.type ?? '') && account.parentAccountId == null)) {
+  const policy = getPlatformSpec(platform)?.subscription_models
+  if (!policy || (!policy.account_types.includes(account.type ?? '') && !(policy.include_credential_shadows && account.parentAccountId != null))) {
     return models
   }
   const mapping = buildModelMappingObject(account.mappingMode ?? 'combined', models, mappings) ?? {}
@@ -519,7 +520,7 @@ export function filterRetiredSubscriptionModels(
     }
     const canonical = target.trim().split('/').pop()?.trim().toLowerCase()
       .replace(/_/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^gpt5/, 'gpt-5') ?? ''
-    return canonical !== 'gpt-5.5' && !canonical.startsWith('gpt-5.5-')
+    return !policy.retired_families.some(family => canonical === family || canonical.startsWith(`${family}-`))
   })
 }
 

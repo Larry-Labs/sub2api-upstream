@@ -291,6 +291,17 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     expect(wrapper.find('[data-testid="create-openai-ws-mode"]').exists()).toBe(true)
   })
 
+  it('does not reset another provider whitelist when switching credential types', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'admin.accounts.claudeConsole')
+    await wrapper.get('[data-testid="model-whitelist-selector"]').trigger('click')
+    expect(wrapper.getComponent(ModelWhitelistSelectorStub).props('modelValue')).toEqual(['public-glm'])
+    await selectButtonByText(wrapper, 'admin.accounts.claudeCode')
+    await selectButtonByText(wrapper, 'admin.accounts.claudeConsole')
+    expect(wrapper.getComponent(ModelWhitelistSelectorStub).props('modelValue')).toEqual(['public-glm'])
+    wrapper.unmount()
+  })
+
   it('keeps API-key prefills and passes account context to the selector', async () => {
     const wrapper = mountModal()
     await selectButtonByText(wrapper, 'OpenAI')

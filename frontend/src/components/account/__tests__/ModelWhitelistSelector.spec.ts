@@ -225,6 +225,32 @@ describe('ModelWhitelistSelector', () => {
     await flushPromises()
     expect(wrapper.emitted('update:modelValue')![0][0]).toEqual(['gpt-image-2', 'gpt-6.1-sol'])
   })
+  it('also cleans stale selections when the backend returns an empty eligible catalog', async () => {
+    syncUpstreamModels.mockResolvedValue({ models: [] })
+    const wrapper = mountSelector({ accountType: 'oauth', accountId: 12, modelValue: ['gpt-5.5', 'gpt-image-2'] })
+    await wrapper.findAll('button').find(button => button.text() === 'admin.accounts.syncUpstreamModels')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')![0][0]).toEqual(['gpt-image-2'])
+  })
+
+  it('keeps a valid replacement mapping when the retired whitelist becomes empty', async () => {
+    syncUpstreamModels.mockResolvedValue({ models: [] })
+    const wrapper = mountSelector({ accountType: 'oauth', accountId: 12, modelValue: ['gpt-5.5'], modelMappings: [{ from: 'live-alias', to: 'gpt-6.1-sol' }] })
+    await wrapper.findAll('button').find(button => button.text() === 'admin.accounts.syncUpstreamModels')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')![0][0]).toEqual([])
+    expect(showWarning).not.toHaveBeenCalled()
+  })
+
+  it('does not broaden the restriction when an empty upstream result leaves only a retired selection', async () => {
+    syncUpstreamModels.mockResolvedValue({ models: [] })
+    const wrapper = mountSelector({ accountType: 'oauth', accountId: 12, modelValue: ['gpt-5.5'] })
+    await wrapper.findAll('button').find(button => button.text() === 'admin.accounts.syncUpstreamModels')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(showWarning).toHaveBeenCalledWith('admin.accounts.modelSyncWouldClearWhitelist')
+  })
+
   it('does not broaden a whitelist when its last upstream model is retired', async () => {
     syncUpstreamModels.mockResolvedValue({ models: ['gpt-5.5'] })
     const wrapper = mountSelector({ accountType: 'oauth', accountId: 12, modelValue: ['gpt-5.5'] })

@@ -153,6 +153,7 @@ import type { SyncUpstreamPreviewParams } from '@/api/admin/accounts'
 import { useClipboard } from '@/composables/useClipboard'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import type { ModelRestrictionMode } from '@/composables/useModelWhitelist'
 import { allModels, getModelsByPlatform, filterRetiredSubscriptionModels } from '@/composables/useModelWhitelist'
 import { supportsUpstreamModelSync } from '@/constants/platformCatalog'
@@ -297,14 +298,15 @@ const handleEnter = () => {
 
 const applySyncedModels = (models: string[]) => {
   const eligibleModels = filterModels(models)
-  if (models.length > 0 && eligibleModels.length === 0) {
+  const remainingMapping = buildModelMappingObject(props.mappingMode ?? 'combined', eligibleModels, props.modelMappings ?? [])
+  if (models.length > 0 && eligibleModels.length === 0 && !remainingMapping) {
     // Empty model_mapping means unrestricted. Keep the current restriction
     // until an administrator selects an available replacement.
     appStore.showWarning(t('admin.accounts.modelSyncWouldClearWhitelist'))
-    return false
+    return null
   }
   emit('update:modelValue', eligibleModels)
-  return true
+  return eligibleModels
 }
 
 const fillRelated = () => {
@@ -334,6 +336,9 @@ const syncUpstreamModels = async () => {
     }
 
     const upstreamModels = result.models.map(model => model.trim()).filter(Boolean)
+    const newModels = Array.from(new Set([...props.modelValue, ...upstreamModels]))
+    const syncedModels = applySyncedModels(newModels)
+    if (!syncedModels) return
     if (upstreamModels.length === 0) {
       appStore.showInfo(t('admin.accounts.syncUpstreamModelsEmpty'))
       return
@@ -342,17 +347,7 @@ const syncUpstreamModels = async () => {
     if (!props.accountId) {
       emit('upstream-synced')
     }
-
-    const newModels = [...props.modelValue]
-    let addedCount = 0
-    for (const model of upstreamModels) {
-      if (!newModels.includes(model)) {
-        newModels.push(model)
-        addedCount += 1
-      }
-    }
-
-    if (!applySyncedModels(newModels)) return
+    const addedCount = syncedModels.filter(model => !props.modelValue.includes(model)).length
     const warnings = result.warnings ?? []
     const hasPartialMetadata = warnings.some(
       warning => warning.code === 'upstream_model_metadata_partial'

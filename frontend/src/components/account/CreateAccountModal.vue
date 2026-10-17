@@ -5286,13 +5286,21 @@ const handleSelectGeminiOAuthType = (oauthType: 'code_assist' | 'google_one' | '
 
 // Auto-fill related models when switching to whitelist mode or changing platform
 watch(
-  [modelRestrictionMode, () => form.platform, () => form.type],
+  [modelRestrictionMode, () => form.platform],
   ([newMode]) => {
     if (newMode === 'whitelist') {
       allowedModels.value = [...getModelsByPlatform(form.platform, { type: form.type })]
     }
   }
 )
+
+// Only OpenAI subscription eligibility changes with credential type. Changing
+// an unrelated provider's auth method must not reset its custom whitelist.
+watch(() => form.type, () => {
+  if (form.platform === 'openai' && modelRestrictionMode.value === 'whitelist') {
+    allowedModels.value = [...getModelsByPlatform(form.platform, { type: form.type })]
+  }
+})
 
 watch(
   [antigravityModelRestrictionMode, () => form.platform],

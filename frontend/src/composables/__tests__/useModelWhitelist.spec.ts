@@ -268,6 +268,24 @@ describe('subscription model choices', () => {
     expect(getModelsByPlatform('openai', { type: 'apikey', parentAccountId: 12 })).not.toContain('gpt-5.5')
     expect(filterRetiredSubscriptionModels(['gpt-5.5'], 'anthropic', { type: 'oauth' })).toEqual(['gpt-5.5'])
   })
+  it('reads backend-generated policy data instead of fixing the retired family in the UI', () => {
+    setPlatformCatalog({
+      ...BUILTIN_PLATFORM_CATALOG,
+      platforms: BUILTIN_PLATFORM_CATALOG.platforms.map(platform => platform.id === 'openai' ? {
+        ...platform,
+        subscription_models: { account_types: ['oauth'], include_credential_shadows: false, retired_families: ['gpt-7.9'] }
+      } : platform)
+    })
+    try {
+      expect(filterRetiredSubscriptionModels(['gpt-5.5', 'gpt-7.9', 'gpt-7.9-high', 'gpt-7.90'], 'openai', { type: 'oauth' }))
+        .toEqual(['gpt-5.5', 'gpt-7.90'])
+      expect(filterRetiredSubscriptionModels(['gpt-7.9'], 'openai', { type: 'setup-token' })).toEqual(['gpt-7.9'])
+      expect(filterRetiredSubscriptionModels(['gpt-7.9'], 'openai', { type: 'apikey', parentAccountId: 12 })).toEqual(['gpt-7.9'])
+    } finally {
+      resetPlatformCatalog()
+    }
+  })
+
   it('uses one-hop mappings and ignores stale mappings in passthrough mode', () => {
     const models = ['gpt-5.5', 'legacy', 'openai/GPT_5.5-high', 'gpt-image-2']
     const mappings = [{ from: 'gpt-5.5', to: 'gpt-6.1-sol' }, { from: 'legacy', to: 'gpt-5.5' }]
